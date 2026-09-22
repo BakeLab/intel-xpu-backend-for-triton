@@ -743,6 +743,11 @@ class XPUDriver(DriverBase):
                 parser = compile_module_from_src(src=Path(os.path.join(dirname, "arch_parser.c")).read_text(),
                                                  name="arch_utils")
                 arch = parser.parse_device_arch(dev_property["architecture"])
+            if arch != "bmg":
+                raise RuntimeError(
+                    "Triton XPU supports only the BMG architecture; "
+                    f"detected {arch or 'an unsupported architecture'}"
+                )
             dev_property["arch"] = arch
 
         # All GPUs with the same device_id have the same extensions, so we just
