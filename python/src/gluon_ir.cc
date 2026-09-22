@@ -1216,7 +1216,10 @@ void init_gluon_ir(py::module &&m) {
          unsigned numWarps, const std::string &atomName) -> py::object {
         DialectRegistry registry;
         registry.insert<triton::TritonDialect, ttg::TritonGPUDialect,
-                        ttng::TritonNvidiaGPUDialect, gluon::GluonDialect>();
+#if TRITON_HAS_NVIDIA_BACKEND
+                        ttng::TritonNvidiaGPUDialect,
+#endif
+                        gluon::GluonDialect>();
         MLIRContext context(MLIRContext::Threading::DISABLED);
         context.appendDialectRegistry(registry);
         context.loadAllAvailableDialects();
@@ -1282,7 +1285,10 @@ void init_gluon_ir(py::module &&m) {
            std::vector<unsigned> &warpsPerCTA) -> py::object {
           DialectRegistry registry;
           registry.insert<triton::TritonDialect, ttg::TritonGPUDialect,
-                          ttng::TritonNvidiaGPUDialect, gluon::GluonDialect>();
+#if TRITON_HAS_NVIDIA_BACKEND
+                          ttng::TritonNvidiaGPUDialect,
+#endif
+                          gluon::GluonDialect>();
           MLIRContext ctx(MLIRContext::Threading::DISABLED);
           ctx.appendDialectRegistry(registry);
           ctx.loadAllAvailableDialects();
@@ -1304,7 +1310,10 @@ void init_gluon_ir(py::module &&m) {
            bool isKContig) -> py::object {
           DialectRegistry registry;
           registry.insert<triton::TritonDialect, ttg::TritonGPUDialect,
-                          ttng::TritonNvidiaGPUDialect, gluon::GluonDialect>();
+#if TRITON_HAS_NVIDIA_BACKEND
+                          ttng::TritonNvidiaGPUDialect,
+#endif
+                          gluon::GluonDialect>();
           MLIRContext ctx(MLIRContext::Threading::DISABLED);
           ctx.appendDialectRegistry(registry);
           ctx.loadAllAvailableDialects();
@@ -1349,7 +1358,10 @@ void init_gluon_ir(py::module &&m) {
            std::vector<std::vector<int32_t>> &cgaBases) -> py::object {
           DialectRegistry registry;
           registry.insert<triton::TritonDialect, ttg::TritonGPUDialect,
-                          ttng::TritonNvidiaGPUDialect, gluon::GluonDialect>();
+#if TRITON_HAS_NVIDIA_BACKEND
+                          ttng::TritonNvidiaGPUDialect,
+#endif
+                          gluon::GluonDialect>();
           MLIRContext ctx(MLIRContext::Threading::DISABLED);
           ctx.appendDialectRegistry(registry);
           ctx.loadAllAvailableDialects();
@@ -1373,7 +1385,10 @@ void init_gluon_ir(py::module &&m) {
            bool useHwView) -> std::string {
           DialectRegistry registry;
           registry.insert<triton::TritonDialect, ttg::TritonGPUDialect,
-                          ttng::TritonNvidiaGPUDialect, gluon::GluonDialect>();
+#if TRITON_HAS_NVIDIA_BACKEND
+                          ttng::TritonNvidiaGPUDialect,
+#endif
+                          gluon::GluonDialect>();
           MLIRContext ctx(MLIRContext::Threading::DISABLED);
           ctx.appendDialectRegistry(registry);
           ctx.loadAllAvailableDialects();

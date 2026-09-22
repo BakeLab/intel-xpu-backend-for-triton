@@ -405,7 +405,32 @@ class InstallLib(install_lib):
                     f.unlink()
 
 
-backends = [*BackendInstaller.copy(["intel", "nvidia", "amd"]), *BackendInstaller.copy_externals()]
+def get_in_tree_backends(available):
+    """Return the selected in-tree backends for this wheel.
+
+    ``TRITON_CODEGEN_BACKENDS`` is deliberately consumed by the packaging
+    frontend (rather than passed straight to CMake) so that unused Python
+    backend modules and native code are omitted from backend-specific wheels.
+    """
+    requested = os.getenv("TRITON_CODEGEN_BACKENDS")
+    if requested is None:
+        return available
+    selected = [name.strip() for name in requested.split(",") if name.strip()]
+    unknown = sorted(set(selected) - set(available))
+    if unknown:
+        raise ValueError(
+            "TRITON_CODEGEN_BACKENDS contains unsupported backend(s): "
+            + ", ".join(unknown)
+        )
+    if not selected:
+        raise ValueError("TRITON_CODEGEN_BACKENDS must select at least one backend")
+    return [name for name in available if name in selected]
+
+
+backends = [
+    *BackendInstaller.copy(get_in_tree_backends(["intel", "nvidia", "amd"])),
+    *BackendInstaller.copy_externals(),
+]
 
 
 def get_package_dirs():
