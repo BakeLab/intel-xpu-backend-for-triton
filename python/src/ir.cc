@@ -366,7 +366,9 @@ void init_triton_ir(py::module_ &m) {
 
     registry.insert<TritonDialect, ::mlir::triton::gpu::TritonGPUDialect,
                     ::mlir::triton::instrument::TritonInstrumentDialect,
+#if TRITON_HAS_NVIDIA_BACKEND
                     ::mlir::triton::nvidia_gpu::TritonNvidiaGPUDialect,
+#endif
                     math::MathDialect, arith::ArithDialect, scf::SCFDialect,
                     ::mlir::gpu::GPUDialect, cf::ControlFlowDialect,
                     LLVM::LLVMDialect, mlir::ub::UBDialect,
