@@ -13,7 +13,20 @@ from dataclasses import dataclass
 from contextlib import contextmanager
 from typing import cast, Any, Callable, Generator, Generic, Optional, Protocol, Type, TypeVar, TypedDict, TYPE_CHECKING, Union
 
-from triton._C.libtriton import getenv, getenv_bool  # type: ignore
+try:
+    from triton._C.libtriton import getenv, getenv_bool  # type: ignore
+except ImportError:
+    # libtriton.so references LLVM symbols without declaring libLLVM as a
+    # dependency; load it into the global namespace and retry.
+    import ctypes
+
+    for _soname in ("libLLVM.so", "libLLVM-22.so"):
+        try:
+            ctypes.CDLL(_soname, mode=ctypes.RTLD_GLOBAL)
+            break
+        except OSError:
+            continue
+    from triton._C.libtriton import getenv, getenv_bool  # type: ignore
 
 if TYPE_CHECKING:
     from .runtime.cache import CacheManager, RemoteCacheBackend
