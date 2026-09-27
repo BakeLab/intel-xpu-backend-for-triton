@@ -5,10 +5,10 @@ set(TRITON_TEST_LIBS
   TritonTestDialect
   TritonTestProton
 )
-if(TRITON_HAS_AMD_BACKEND)
+if("amd" IN_LIST TRITON_CODEGEN_BACKENDS)
   list(APPEND TRITON_TEST_LIBS TritonAMDGPUTestAnalysis)
 endif()
-if(TRITON_HAS_INTEL_BACKEND)
+if("intel" IN_LIST TRITON_CODEGEN_BACKENDS)
   list(APPEND TRITON_TEST_LIBS TritonIntelTestAnalysis)
 endif()
 
