@@ -102,6 +102,37 @@ StringRef TargetInfo::getAtomicSyncScope(MemSyncScope scope) const {
   llvm_unreachable("unknown memory synchronization scope");
 }
 
+Value TargetInfo::loadRelaxed(RewriterBase &rewriter, Location loc, Value ptr,
+                              Type valueTy, Value pred,
+                              MemSyncScope scope) const {
+  auto b = TritonLLVMOpBuilder(loc, rewriter);
+  auto results =
+      emitPredicated(rewriter, loc, pred, ValueRange{b.undef(valueTy)}, [&] {
+        unsigned alignment = valueTy.getIntOrFloatBitWidth() / 8;
+        Value loaded = LLVM::LoadOp::create(
+            rewriter, loc, valueTy, ptr, alignment, /*isVolatile=*/false,
+            /*isNonTemporal=*/false, /*isInvariant=*/false,
+            /*isInvariantGroup=*/false, LLVM::AtomicOrdering::monotonic,
+            getAtomicSyncScope(scope));
+        return SmallVector<Value>{loaded};
+      });
+  return results.front();
+}
+
+void TargetInfo::storeRelaxed(RewriterBase &rewriter, Location loc, Value ptr,
+                              Value value, Value pred,
+                              MemSyncScope scope) const {
+  emitPredicated(rewriter, loc, pred, ValueRange{}, [&] {
+    unsigned alignment = value.getType().getIntOrFloatBitWidth() / 8;
+    LLVM::StoreOp::create(rewriter, loc, value, ptr, alignment,
+                          /*isVolatile=*/false, /*isNonTemporal=*/false,
+                          /*isInvariantGroup=*/false,
+                          LLVM::AtomicOrdering::monotonic,
+                          getAtomicSyncScope(scope));
+    return SmallVector<Value>{};
+  });
+}
+
 void TargetInfo::barrier(Location loc, RewriterBase &rewriter,
                          triton::gpu::AddrSpace targets) const {
   auto b = TritonLLVMOpBuilder(loc, rewriter);
@@ -228,7 +259,8 @@ Value TargetInfo::programId(RewriterBase &rewriter, Location loc,
 
 bool TargetInfo::warpReduce(RewriterBase &rewriter, Location loc,
                             SmallVector<Value> &acc, triton::ReduceOp op,
-                            unsigned reduceLaneIdMask) const {
+                            unsigned reduceLaneIdMask,
+                            unsigned /*broadcastLaneIdMask*/) const {
   /**
   The reduceLaneIdMask is the bit map of the bases of the linear layout to be
   reduced within warp. Here is the code pieces of ReduceOpToLLVM.cpp:
@@ -274,29 +306,43 @@ bool TargetInfo::warpReduce(RewriterBase &rewriter, Location loc,
   // TritonGEN::SubGroupReduceOp.
   if (op.getNumOperands() != 1 || op.getNumResults() != 1)
     return false;
-  Region &combineOp = op.getCombineOp();
-  if (combineOp.getBlocks().size() > 1)
-    return false;
-  Block &block = *combineOp.begin();
-  Operation *yield = block.getTerminator();
-  Operation *reduceOp = yield->getOperand(0).getDefiningOp();
-  if (!reduceOp || reduceOp->getNumOperands() != 2 ||
-      reduceOp->getNumResults() != 1)
-    return false;
-  if (reduceOp->getOperand(0) != block.getArgument(0) ||
-      reduceOp->getOperand(1) != block.getArgument(1))
+  FailureOr<Operation *> reduceOp =
+      gpu::intel::matchSingleBinaryCombine(op.getCombineOp());
+  if (failed(reduceOp))
     return false;
 
   auto mod = op->getParentOfType<ModuleOp>();
   unsigned warpSize = triton::gpu::TritonGPUDialect::getThreadsPerWarp(mod);
 
-  if (!isSupportedWarpReduceOp(reduceOp, numLaneToReduce, warpSize))
+  if (!isSupportedWarpReduceOp(*reduceOp, numLaneToReduce, warpSize))
     return false;
 
   for (unsigned i = 0; i < acc.size(); ++i) {
-    acc[i] = genWarpReduce(rewriter, loc, acc[i], reduceOp, numLaneToReduce,
+    acc[i] = genWarpReduce(rewriter, loc, acc[i], *reduceOp, numLaneToReduce,
                            warpSize);
   }
+
+  return true;
+}
+
+bool TargetInfo::warpScan(RewriterBase &rewriter, Location loc,
+                          SmallVector<Value> &acc, triton::ScanOp op,
+                          unsigned scanDim, unsigned warpSize) const {
+  if (!gpu::intel::isSubgroupScanEnabled())
+    return false;
+
+  // `InclusiveScan` scans the entire sub-group and SPIR-V offers no portable
+  // clustered scan, so the axis must occupy every lane. Gate on the
+  // unique-data lane count, which discounts broadcast duplicates.
+  if (scanDim != warpSize)
+    return false;
+
+  FailureOr<Operation *> combineOp = matchSupportedWarpScanOp(op);
+  if (failed(combineOp))
+    return false;
+
+  for (Value &value : acc)
+    value = genWarpScan(rewriter, loc, value, *combineOp, warpSize);
 
   return true;
 }
@@ -317,6 +363,10 @@ void TargetInfo::assertFail(RewriterBase &rewriter, Location loc,
                             StringRef message, StringRef file, StringRef func,
                             int line) const {
   return emitter.assertFail(rewriter, loc, message, file, func, line);
+}
+
+void TargetInfo::assertTrap(RewriterBase &rewriter, Location loc) const {
+  llvm_unreachable("requiresAssertTrap() is false; no separate trap needed");
 }
 
 unsigned TargetInfo::getReductionTreeArity(Operation *combinerOp) const {

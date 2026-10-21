@@ -14,7 +14,7 @@ if(TRITON_BUILD_PYTHON_MODULE AND TRITON_BUILD_AMD_PLUGIN)
   add_triton_plugin(TritonAMD
     ${CMAKE_CURRENT_SOURCE_DIR}/python/triton_amd.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/python/dylib_utils.cc
-    LINK_LIBS TritonAMDGPUToLLVM TritonAMDGPUTransforms TritonAMDGPUDialectToLLVM)
+    LINK_LIBS TritonAMDGPUToLLVM TritonAMDGPUTransforms TritonAMDGPUDialectToLLVM TritonAMDMFMASchedule)
   target_link_libraries(TritonAMD PRIVATE Python3::Module nanobind-static lldCommon lldELF)
 endif()
 if(TRITON_BUILD_UT AND TRITON_BUILD_AMD_PLUGIN)
