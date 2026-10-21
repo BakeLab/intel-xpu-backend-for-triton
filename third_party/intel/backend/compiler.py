@@ -340,6 +340,15 @@ class XPUBackend(BaseBackend, metaclass=XPUBackendMeta):
         args["is_lts"] = self.properties['is_lts']
         args["max_grf_mode"] = self.properties['max_grf_mode']
         args["enable_fp_fusion"] = knobs.language.fp_fusion_enabled(args.get("enable_fp_fusion"))
+        # On BMG, let IGC pick the GRF size in one compile. 'default' builds at
+        # small GRF and, for any kernel spilling past the rebuild threshold,
+        # throws that build away and compiles again at large GRF -- about half
+        # the JIT time of every large-GRF kernel. Measured on Arc Pro B70: the
+        # same final binaries' spills, no runtime change, ~47% less IGC time.
+        # Above 32 warps a large GRF is unlaunchable, so keep 'default' there.
+        if ("grf_mode" not in args and getattr(self, "device_arch", None) == "bmg"
+                and args.get("num_warps", XPUOptions.num_warps) <= 32):
+            args["grf_mode"] = "auto"
         if "in_loop_sink" not in args:
             args["in_loop_sink"] = knobs.intel.in_loop_sink
         return XPUOptions(**args)
