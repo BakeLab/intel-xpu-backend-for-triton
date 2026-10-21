@@ -15,13 +15,13 @@ import torch
 
 import triton
 import triton.language as tl
-from triton._internal_testing import is_hip
+from triton._internal_testing import is_hip, requires_compiler_for
 from triton.runtime.cache import FileCacheManager, RemoteCacheManager
 
 
 @pytest.mark.parametrize("backend, options_type, arch", [
-    ("amd", "HIPOptions", "gfx950"),
-    ("nvidia", "CUDAOptions", "sm90"),
+    pytest.param("amd", "HIPOptions", "gfx950", marks=requires_compiler_for("hip")),
+    pytest.param("nvidia", "CUDAOptions", "sm90", marks=requires_compiler_for("cuda")),
 ])
 def test_extern_libs_hash_contents(backend, options_type, arch, tmp_path):
     compiler = importlib.import_module(f"triton.backends.{backend}.compiler")
