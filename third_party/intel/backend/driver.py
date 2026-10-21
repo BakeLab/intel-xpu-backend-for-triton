@@ -21,6 +21,7 @@ from triton.runtime.cache import get_cache_manager
 from triton.backends.compiler import GPUTarget
 from triton.backends.driver import DriverBase, TensorDescABI, decompose_descriptor
 from triton.backends.driver import expand_signature, get_kernel_argument_layout, wrap_handle_tensordesc_impl
+from triton.backends.intel import prebuilt
 
 # PTI's default collection mode is Local (mode 2), which with an event-less launcher hangs or
 # reports zero kernel times on the Level Zero v1 adapter (PVC); v2 (BMG and newer) is fine. Full
@@ -430,9 +431,26 @@ def compile_module_from_src(src: str, name: str, is_lts: bool = False):
     if name == "spirv_utils" and COMPILATION_HELPER.inject_pytorch_dep:
         hasher.update("inject_pytorch=True".encode("utf-8"))
     key = hasher.hexdigest()
-    cache = get_cache_manager(key)
-    suffix = sysconfig.get_config_var("EXT_SUFFIX")
-    cache_path = cache.get_file(f"{name}{suffix}")
+    # Flags that change the module's behaviour, as opposed to where it finds
+    # its runtime libraries; a prebuilt module must have been built with these.
+    variant_args = []
+    if COMPILATION_HELPER.inject_pytorch_dep and name == "spirv_utils":
+        if os.name == "nt":
+            variant_args += ["/DTRITON_INTEL_INJECT_PYTORCH=1", "/std:c++20"]
+        else:
+            variant_args += ["-DTRITON_INTEL_INJECT_PYTORCH=1", "-std=c++20"]
+
+    if name == "spirv_utils" and not is_lts:
+        if os.name == "nt":
+            variant_args += ["/DENABLE_EXPERIMENTAL_EVENTLESS_SUBMIT"]
+        else:
+            variant_args += ["-DENABLE_EXPERIMENTAL_EVENTLESS_SUBMIT"]
+
+    cache_path = prebuilt.find(name, src, variant_args)
+    if cache_path is None:
+        cache = get_cache_manager(key)
+        suffix = sysconfig.get_config_var("EXT_SUFFIX")
+        cache_path = cache.get_file(f"{name}{suffix}")
     if cache_path is None:
         with tempfile.TemporaryDirectory() as tmpdir:
             src_path = os.path.join(tmpdir, "main.cpp")
@@ -444,18 +462,7 @@ def compile_module_from_src(src: str, name: str, is_lts: bool = False):
                     extra_compiler_args += ["/LIBPATH:" + dir for dir in COMPILATION_HELPER.libsycl_dir]
                 else:
                     extra_compiler_args += ["-Wl,-rpath," + dir for dir in COMPILATION_HELPER.libsycl_dir]
-
-            if COMPILATION_HELPER.inject_pytorch_dep and name == "spirv_utils":
-                if os.name == "nt":
-                    extra_compiler_args += ["/DTRITON_INTEL_INJECT_PYTORCH=1", "/std:c++20"]
-                else:
-                    extra_compiler_args += ["-DTRITON_INTEL_INJECT_PYTORCH=1", "-std=c++20"]
-
-            if name == "spirv_utils" and not is_lts:
-                if os.name == "nt":
-                    extra_compiler_args += ["/DENABLE_EXPERIMENTAL_EVENTLESS_SUBMIT"]
-                else:
-                    extra_compiler_args += ["-DENABLE_EXPERIMENTAL_EVENTLESS_SUBMIT"]
+            extra_compiler_args += variant_args
 
             so = _build(name, src_path, tmpdir, COMPILATION_HELPER.library_dir, COMPILATION_HELPER.include_dir,
                         COMPILATION_HELPER.libraries, ccflags=extra_compiler_args)
@@ -812,10 +819,8 @@ class XPUDriver(DriverBase):
                                                  name="arch_utils")
                 arch = parser.parse_device_arch(dev_property["architecture"])
             if arch != "bmg":
-                raise RuntimeError(
-                    "Triton XPU supports only the BMG architecture; "
-                    f"detected {arch or 'an unsupported architecture'}"
-                )
+                raise RuntimeError("Triton XPU supports only the BMG architecture; "
+                                   f"detected {arch or 'an unsupported architecture'}")
             dev_property["arch"] = arch
 
         # All GPUs with the same device_id have the same extensions, so we just

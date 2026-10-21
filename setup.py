@@ -216,6 +216,25 @@ class CMakeBuildPy(build_py):
                 path.unlink()
             elif path.is_dir():
                 shutil.rmtree(path)
+        if any(backend.name == "intel" for backend in backends):
+            self.prebuild_intel_modules()
+
+    def prebuild_intel_modules(self):
+        # Compile the XPU driver's native helper modules now rather than on
+        # every fresh cache at runtime; see triton/backends/intel/prebuilt.py.
+        # TRITON_INTEL_PREBUILT=1 makes a failure fatal instead of a warning.
+        required = check_env_flag("TRITON_INTEL_PREBUILT")
+        compiler = shutil.which(os.environ.get("TRITON_INTEL_PREBUILT_CXX", "icpx"))
+        out = Path(self.build_lib) / "triton" / "backends" / "intel" / "prebuilt"
+        try:
+            if compiler is None:
+                raise RuntimeError("no SYCL compiler (icpx) found")
+            script = Path(self.build_lib) / "triton" / "backends" / "intel" / "prebuilt.py"
+            subprocess.check_call([sys.executable, str(script), str(out), compiler])
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
+            if required:
+                raise
+            warnings.warn(f"Skipping prebuilt XPU driver modules: {e}")
 
 
 class CMakeExtension(Extension):
@@ -439,10 +458,7 @@ def get_in_tree_backends(available):
     selected = [name.strip() for name in requested.split(",") if name.strip()]
     unknown = sorted(set(selected) - set(available))
     if unknown:
-        raise ValueError(
-            "TRITON_CODEGEN_BACKENDS contains unsupported backend(s): "
-            + ", ".join(unknown)
-        )
+        raise ValueError("TRITON_CODEGEN_BACKENDS contains unsupported backend(s): " + ", ".join(unknown))
     if not selected:
         raise ValueError("TRITON_CODEGEN_BACKENDS must select at least one backend")
     return [name for name in available if name in selected]
