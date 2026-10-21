@@ -208,7 +208,14 @@ class CMakeBuildPy(build_py):
 
     def run(self) -> None:
         self.run_command('build_ext')
-        return super().run()
+        super().run()
+        # A shared build directory may contain payloads from another backend.
+        for package in excluded_backend_packages():
+            path = Path(self.build_lib).joinpath(*package.split('.'))
+            if path.is_symlink():
+                path.unlink()
+            elif path.is_dir():
+                shutil.rmtree(path)
 
 
 class CMakeExtension(Extension):
@@ -474,8 +481,22 @@ def get_package_dirs():
         yield ("triton.profiler.hooks", "third_party/proton/proton/hooks")
 
 
+def excluded_backend_packages():
+    selected = {backend.name for backend in backends}
+    for name, extra in (("intel", "intel"), ("nvidia", "cuda"), ("amd", "hip")):
+        if name not in selected:
+            yield f"triton.backends.{name}"
+            yield f"triton.language.extra.{extra}"
+            yield f"triton.tools.extra.{extra}"
+    if not check_env_flag("TRITON_BUILD_PROTON", "ON"):
+        yield "triton.profiler"
+
+
 def get_packages():
-    yield from find_packages(where="python")
+    excluded = tuple(excluded_backend_packages())
+    for package in find_packages(where="python"):
+        if not any(package == root or package.startswith(root + '.') for root in excluded):
+            yield package
 
     for backend in backends:
         yield f"triton.backends.{backend.name}"
