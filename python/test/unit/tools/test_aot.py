@@ -10,7 +10,7 @@ import shutil
 import numpy as np
 
 import triton
-from triton._internal_testing import is_cuda, is_hip, is_xpu
+from triton._internal_testing import is_cuda, is_hip, is_xpu, requires_compiler_for
 from triton.backends.compiler import GPUTarget
 
 if is_cuda():
@@ -766,6 +766,7 @@ def test_compile_link_autotune_matmul():
             np.testing.assert_allclose(c_tri, c_ref * c_ref, atol=1e-4, rtol=1e-4)
 
 
+@requires_compiler_for("hip" if is_hip() else "cuda")
 def test_ttgir_to_asm():
     src = """
 module attributes {{"ttg.num-warps" = 4 : i32, "ttg.threads-per-warp" = {warp_size} : i32, "ttg.num-ctas" = 1 : i32}} {{

@@ -6,6 +6,7 @@ import tempfile
 
 import triton
 from triton.compiler import ASTSource, make_backend
+from triton.backends import backends
 from triton.backends.compiler import GPUTarget
 from triton.experimental.gluon import GluonASTSource
 from triton.runtime.jit import create_function_from_signature
@@ -52,6 +53,10 @@ def run_filecheck(name, module_str, check_template):
 
 
 def run_parser(kernel_fn, args=(), kwargs={}, target=stub_target):
+    if not any(backend.compiler.supports_target(target) for backend in backends.values()):
+        # Accelerator-specific wheels only build the selected backends.
+        import pytest
+        pytest.skip(f"Triton was built without a {target.backend} compiler backend")
     if "sanitize_overflow" not in kwargs:
         kwargs = dict(kwargs)
         kwargs["sanitize_overflow"] = False

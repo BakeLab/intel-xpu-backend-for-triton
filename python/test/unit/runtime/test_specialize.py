@@ -5,13 +5,15 @@ from collections import namedtuple
 from triton._C.libtriton import native_specialize_impl
 from triton.runtime.jit import MockTensor, JITCallable
 from triton._utils import canonicalize_dtype
-from triton.backends.nvidia.compiler import CUDABackend
-from triton.backends.amd.compiler import HIPBackend
 from triton.language import constexpr
 from triton.language import target_info
 from triton.tools.tensor_descriptor import TensorDescriptor
 from triton.experimental.gluon.nvidia.hopper import TensorDescriptor as GluonTensorDescriptor
 from triton.experimental.gluon.language._layouts import NVMMASharedLayout
+
+# Accelerator-specific wheels only build the selected backends.
+CUDABackend = pytest.importorskip("triton.backends.nvidia.compiler").CUDABackend
+HIPBackend = pytest.importorskip("triton.backends.amd.compiler").HIPBackend
 
 
 def mock_tensor_from_tensor(tensor):

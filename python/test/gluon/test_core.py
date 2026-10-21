@@ -10,6 +10,7 @@ import triton.language as tl
 from triton import CompilationError
 
 from triton._internal_testing import (
+    requires_compiler_for,
     is_compile_warmup,
     is_cuda,
     is_ampere_or_newer,
@@ -58,6 +59,7 @@ from triton._C.libtriton.gluon_ir import make_cga_layout
 THREADS_PER_WARP = triton.runtime.driver.active.get_current_target().warp_size
 
 
+@requires_compiler_for("hip")
 @pytest.mark.parametrize("elementwise", [False, True])
 def test_inline_asm_shared_amd_compilation(elementwise):
 
@@ -78,8 +80,10 @@ def test_inline_asm_shared_amd_compilation(elementwise):
     assert "ds_read_b32" in compiled.asm["amdgcn"]
 
 
-@pytest.mark.parametrize("target, binary", [(GPUTarget("cuda", 80, 32), "cubin"),
-                                            (GPUTarget("hip", "gfx942", 64), "hsaco")])
+@pytest.mark.parametrize("target, binary", [
+    pytest.param(GPUTarget("cuda", 80, 32), "cubin", marks=requires_compiler_for("cuda")),
+    pytest.param(GPUTarget("hip", "gfx942", 64), "hsaco", marks=requires_compiler_for("hip")),
+])
 def test_gluon_ast_source_without_driver(target, binary, monkeypatch, fresh_triton_cache):
 
     def fail_driver_access(self):
@@ -7363,6 +7367,7 @@ def test_tma_cache_policy_copy(kind, rank, pred, policy):
         assert expected + ".b64" in compiled.asm["ptx"]
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("target", [GPUTarget("cuda", 90, 32), GPUTarget("cuda", 100, 32)])
 @pytest.mark.parametrize("rank,kind,multicast", [(1, "load", False), (2, "load", False), (5, "load", False),
                                                  (2, "load", True), (4, "im2col", False), (4, "im2col", True),

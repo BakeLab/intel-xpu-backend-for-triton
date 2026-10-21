@@ -19,6 +19,7 @@ from triton._compile_warmup_state import is_compile_warmup
 
 from numpy.random import RandomState
 from triton.backends import backends
+from triton.backends.compiler import GPUTarget
 from triton.runtime.jit import TensorWrapper, reinterpret, type_canonicalisation_dict
 
 int_dtypes = ['int8', 'int16', 'int32', 'int64']
@@ -56,6 +57,17 @@ def get_current_target():
     if not any(backend.driver.is_active() for backend in backends.values()):
         return None
     return triton.runtime.driver.active.get_current_target()
+
+
+def has_compiler_for(target_backend: str) -> bool:
+    # Accelerator-specific wheels only build the selected backends.
+    target = GPUTarget(target_backend, 0, 0)
+    return any(backend.compiler.supports_target(target) for backend in backends.values())
+
+
+def requires_compiler_for(target_backend: str):
+    return pytest.mark.skipif(not has_compiler_for(target_backend),
+                              reason=f"Triton was built without a {target_backend} compiler backend")
 
 
 def is_cuda():

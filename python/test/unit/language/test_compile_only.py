@@ -6,6 +6,7 @@ import triton.language as tl
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
 from triton.compiler.errors import CompileTimeAssertionFailure
+from triton._internal_testing import requires_compiler_for
 from triton.runtime.driver import driver
 
 
@@ -15,6 +16,7 @@ def topk_kernel(K: tl.constexpr):
     tl.topk(x, K)
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize(
     "k, error",
     [
@@ -35,12 +37,14 @@ def test_topk_invalid_k(k, error):
     assert cause.error_message == error
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("k", [1, 8])
 def test_topk_valid_k(k):
     src = ASTSource(fn=topk_kernel, signature={"K": "constexpr"}, constexprs={"K": k})
     triton.compile(src, target=GPUTarget("cuda", 90, 32))
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_sort_keeps_comparisons_boolean() -> None:
 
     @triton.jit
@@ -55,6 +59,7 @@ def test_compile_only_sort_keeps_comparisons_boolean() -> None:
     assert "arith.extui" not in compiled.asm["ttgir"]
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_sm100() -> None:
 
     @triton.jit
@@ -71,6 +76,7 @@ def test_compile_only_sm100() -> None:
     assert k.asm["cubin"] != b""
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("seed_type, dtype", [("u32", tl.uint32), ("u64", tl.uint32), ("u64", tl.uint64)])
 def test_umulhi_truncated_input(seed_type, dtype):
     from triton._C.libtriton import ir
@@ -109,6 +115,7 @@ def test_umulhi_truncated_input(seed_type, dtype):
         pytest.fail("PTX stage not found")
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("instrumentation_mode", ["", "fpsan"])
 def test_compile_only_nvptx_fabs_preserves_nan_payload(instrumentation_mode):
     from triton._C.libtriton import llvm
@@ -138,6 +145,7 @@ define ptx_kernel void @abs_kernel(ptr addrspace(1) %input, ptr addrspace(1) %ou
         assert "and.b32" not in ptx
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("element_type", ["f32", "f16", "bf16"])
 def test_compile_only_packed_arith_chains(element_type, tmp_path) -> None:
     packed_type = f"{element_type}x2"
@@ -194,6 +202,7 @@ module attributes {{"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 4 : i32, ttg.tar
     assert "prmt.b32" not in ptx
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_ws_cluster_barrier_shared_memory(tmp_path) -> None:
     src = """
 #shared = #ttg.swizzled_shared<{vec = 1, perPhase = 1, maxPhase = 1, order = [0], CGALayout = [[0]]}>
@@ -223,6 +232,7 @@ module attributes {"ttg.num-ctas" = 2 : i32, "ttg.num-warps" = 4 : i32, ttg.targ
     assert k.asm["cubin"] != b""
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("instrumentation_mode", ["", "consan", "gsan", "iisan", "fpsan", "gsan,consan"])
 def test_maxnreg_instrumentation_mode(instrumentation_mode, monkeypatch, fresh_triton_cache):
 
@@ -250,6 +260,7 @@ def test_maxnreg_instrumentation_mode(instrumentation_mode, monkeypatch, fresh_t
         assert ".maxnreg 42" in compiled.asm["ptx"]
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("max_occupancy", [None, 1, 4])
 def test_max_occupancy_compile_only(max_occupancy, monkeypatch, fresh_triton_cache):
 
@@ -271,6 +282,7 @@ def test_max_occupancy_compile_only(max_occupancy, monkeypatch, fresh_triton_cac
     assert compiled.metadata.shared == 0
 
 
+@requires_compiler_for("cuda")
 @pytest.mark.parametrize("max_occupancy", [0, -1, 1.5, True, "2"])
 def test_max_occupancy_invalid(max_occupancy):
     from triton.backends.nvidia.compiler import CUDABackend
@@ -280,6 +292,7 @@ def test_max_occupancy_invalid(max_occupancy):
         backend.parse_options({"max_occupancy": max_occupancy})
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_expect_zero() -> None:
 
     @triton.jit
@@ -309,6 +322,7 @@ def test_compile_only_expect_zero() -> None:
     assert "tt.assert" not in fpsan.asm["ttir"]
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_dot() -> None:
 
     @triton.jit
@@ -364,6 +378,7 @@ def test_compile_only_dot() -> None:
     assert k.asm["cubin"] != b""
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_k_loop() -> None:
 
     @triton.jit
@@ -409,6 +424,7 @@ def test_compile_only_k_loop() -> None:
     assert k.asm["cubin"] != b""
 
 
+@requires_compiler_for("cuda")
 def test_compile_only_dot_mxfp() -> None:
 
     @triton.jit
@@ -472,6 +488,7 @@ def test_signature_ordering():
     triton.compile(src=src, target=target)
 
 
+@requires_compiler_for("hip")
 def test_fp8_compiles_for_multiple_architectures_hip():
     """
     Validate FP8 compilation succeeds for architectures with different
@@ -491,6 +508,7 @@ def test_fp8_compiles_for_multiple_architectures_hip():
     triton.compile(src, target=GPUTarget("hip", "gfx942", 64))
 
 
+@requires_compiler_for("cuda")
 def test_fp8_compiles_for_multiple_architectures_cuda():
     """
     Validate FP8 compilation succeeds for architectures with different

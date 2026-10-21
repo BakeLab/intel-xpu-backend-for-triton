@@ -29,7 +29,7 @@ from triton.backends.driver import (
     get_kernel_argument_layout,
     wrap_handle_tensordesc_impl,
 )
-from triton.backends.nvidia.compiler import CUDABackend
+from triton.backends.compiler import BaseBackend
 from triton.tools.mxfp import MXFP4Tensor, MXScaleTensor
 
 
@@ -55,8 +55,8 @@ def test_compile_warmup_only_intercepts_launches(device):
         assert triton.testing.cublas() is None
         assert is_compile_warmup()
         assert view.data_ptr() == tensor.data_ptr() + tensor.element_size()
-        assert CUDABackend.get_tensor_specialization(tensor, align=True) == "D"
-        assert CUDABackend.get_tensor_specialization(view, align=True) == ""
+        assert BaseBackend.get_tensor_specialization(tensor, align=True) == "D"
+        assert BaseBackend.get_tensor_specialization(view, align=True) == ""
         assert MXFP4Tensor(size=(16, ), device=device).random().to(torch.float32).shape == (16, )
         assert MXScaleTensor(torch.rand(16, device=device)).to(torch.float32).shape == (16, )
 
