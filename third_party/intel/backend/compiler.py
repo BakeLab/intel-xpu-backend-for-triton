@@ -340,11 +340,13 @@ class XPUBackend(BaseBackend, metaclass=XPUBackendMeta):
         args["is_lts"] = self.properties['is_lts']
         args["max_grf_mode"] = self.properties['max_grf_mode']
         args["enable_fp_fusion"] = knobs.language.fp_fusion_enabled(args.get("enable_fp_fusion"))
-        # On BMG, let IGC pick the GRF size in one compile. 'default' builds at
-        # small GRF and, for any kernel spilling past the rebuild threshold,
-        # throws that build away and compiles again at large GRF -- about half
-        # the JIT time of every large-GRF kernel. Measured on Arc Pro B70: the
-        # same final binaries' spills, no runtime change, ~47% less IGC time.
+        # On BMG, let IGC pick the GRF size first. 'default' builds at small GRF
+        # and, for any kernel spilling past the rebuild threshold, throws that
+        # build away and compiles again at large GRF -- about half the JIT time
+        # of every large-GRF kernel. IGC's auto mode usually picks large GRF in
+        # that one compile; when it keeps a heavily spilling kernel at small GRF,
+        # the same spill gate as 'default' rebuilds it (`make_zebin`, driver.c).
+        # Measured on Arc Pro B70: ~47% less IGC time on matmul/attention.
         # Above 32 warps a large GRF is unlaunchable, so keep 'default' there.
         if ("grf_mode" not in args and getattr(self, "device_arch", None) == "bmg"
                 and args.get("num_warps", XPUOptions.num_warps) <= 32):
@@ -807,21 +809,30 @@ class XPUBackend(BaseBackend, metaclass=XPUBackendMeta):
             # that combination in `make_spv`; skip the *automatic* upgrade for the same
             # reason and keep the working (if slower, spilling) default-GRF binary
             # rather than producing a kernel that fails at launch.
-            if options.grf_mode == 'default' and options.num_warps <= 32:
-                # Try rebuilding with larger GRF modes (default first, then larger).
-                retry_grf_mode_list = [""]  # default GRF mode by omitting the flag
+            # IGC's auto GRF selection may keep a kernel at small GRF despite heavy
+            # spilling, so 'auto' is held to the same spill gate as 'default'.
+            spill_gated = options.grf_mode in ('default', 'auto') and options.num_warps <= 32
+            if spill_gated:
+                # Try rebuilding with larger GRF modes (default/auto first, then larger).
+                retry_grf_mode_list = [""]  # as requested: no flag, or the auto flag
                 retry_grf_mode_list.append(f"-cl-intel-{metadata['max_grf_mode']}-GRF-per-thread")
             else:
-                # Non-default GRF mode is already encoded in metadata["build_flags"] (including "auto").
+                # Non-default GRF mode is already encoded in metadata["build_flags"].
                 retry_grf_mode_list = [""]
 
             base_build_flags = metadata["build_flags"]
             for grf_flag in retry_grf_mode_list:
-                metadata["build_flags"] = f"{base_build_flags} {grf_flag}".strip()
+                flags = base_build_flags
+                if grf_flag:
+                    # An explicit size replaces IGC's auto selection.
+                    flags = flags.replace("-cl-intel-enable-auto-large-GRF-mode", "")
+                metadata["build_flags"] = " ".join(f"{flags} {grf_flag}".split())
                 ocloc_cmd[-1] = metadata["build_flags"] + shader_dump_opt
                 try:
                     subprocess.check_output(ocloc_cmd, stderr=subprocess.STDOUT, text=True)
-                    if options.grf_mode == "default":
+                    # Probe even when no retry is possible: it also catches a
+                    # degenerate zebin.
+                    if options.grf_mode in ('default', 'auto'):
                         spill_size = extract_spill_size_from_zebin(fbin)
                         if accepts_default_grf(spill_size, options.is_lts):
                             break

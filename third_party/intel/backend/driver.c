@@ -504,17 +504,24 @@ struct BuildFlags {
     return false;
   }
 
+  bool hasAutoGRFFlag() const {
+    return build_flags_str.find(AUTO_GRF_FLAG) != std::string::npos;
+  }
+
   // Appends the `-cl-intel-<n>-GRF-per-thread` flag for GRF mode `mode`
   // ("128", "256" or "512"). The mode is decided by the Python compiler
   // backend (see `get_max_grf_mode` in compiler.py); an unrecognised value
   // falls back to 256, the mode every currently-supported target other than
-  // "cri" auto-escalates to.
+  // "cri" auto-escalates to. An explicit size replaces IGC's auto selection.
   void addGRFSizeFlag(const char *mode) {
     const char *flag = LARGE_GRF_FLAG;
     if (std::strcmp(mode, "512") == 0)
       flag = XLARGE_GRF_FLAG;
     else if (std::strcmp(mode, "128") == 0)
       flag = SMALL_GRF_FLAG;
+    if (size_t pos = build_flags_str.find(AUTO_GRF_FLAG);
+        pos != std::string::npos)
+      build_flags_str.erase(pos, std::strlen(AUTO_GRF_FLAG));
     build_flags_str = build_flags_str.append(" ").append(flag);
   }
 };
@@ -608,7 +615,10 @@ extern "C" EXPORT_FUNC PyObject *load_binary(PyObject *args) {
       compileLevelZeroObjects(binary_ptr, binary_size, kernel_name, l0_device,
                               l0_context, build_flags(), is_spv);
   bool firstBuildFailed = PyErr_Occurred();
-  const bool canRetryWithLargeGRF = is_spv && !build_flags.hasGRFSizeFlag();
+  // IGC's auto GRF selection may keep a kernel at small GRF despite heavy
+  // spilling, so hold it to the same spill gate as the default mode.
+  const bool canRetryWithLargeGRF =
+      is_spv && (!build_flags.hasGRFSizeFlag() || build_flags.hasAutoGRFFlag());
   if (firstBuildFailed && !canRetryWithLargeGRF) {
     return NULL;
   }
