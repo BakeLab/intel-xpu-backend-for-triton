@@ -437,6 +437,8 @@ if(TRITON_BUILD_PYTHON_MODULE)
     # LLVM
     LLVMBitWriter
     LLVMPasses
+    # llvm.cc calls llvm::PassPlugin::Load.
+    LLVMPlugins
     LLVMNVPTXCodeGen
     LLVMAMDGPUCodeGen
     LLVMAMDGPUAsmParser

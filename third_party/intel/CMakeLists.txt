@@ -17,6 +17,8 @@ add_triton_plugin(TritonXPU
   TritonGENToLLVMIRTranslation
   TritonIntelGPUToLLVM
   TritonIntelGPUTransforms
+  # triton_xpu.cc calls llvm::PassPlugin::Load.
+  LLVMPlugins
 )
 
 target_link_libraries(TritonXPU PRIVATE Python3::Module nanobind-static)
