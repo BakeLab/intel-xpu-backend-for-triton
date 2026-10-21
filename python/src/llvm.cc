@@ -958,44 +958,46 @@ void init_triton_llvm(py::module_ &m) {
     llvm::parallel::strategy = llvm::hardware_concurrency(1);
   });
 
-  m.def("link_extern_libs", [](llvm::Module *dstMod,
-                               const std::vector<std::string> &paths) {
-    if (paths.empty())
-      return;
+  m.def("link_extern_libs",
+        [](llvm::Module *dstMod, const std::vector<std::string> &paths) {
+          if (paths.empty())
+            return;
 
-    LLVMContext &ctx = dstMod->getContext();
-    llvm::Linker linker(*dstMod);
-    for (const std::string &path : paths) {
-      llvm::SMDiagnostic err;
-      std::unique_ptr<llvm::Module> libMod = llvm::parseIRFile(path, err, ctx);
-      if (!libMod) {
-        std::string message = "Failed to parse library at " + path;
-        throw std::invalid_argument(message);
-      }
-      libMod->setTargetTriple(Triple(dstMod->getTargetTriple()));
-      libMod->setDataLayout(dstMod->getDataLayout());
+          LLVMContext &ctx = dstMod->getContext();
+          llvm::Linker linker(*dstMod);
+          for (const std::string &path : paths) {
+            llvm::SMDiagnostic err;
+            // Load lazily: LinkOnlyNeeded materializes only the functions the
+            // kernel references, so the rest of the library is never parsed.
+            auto libMod = llvm::getLazyIRFileModule(path, err, ctx);
+            if (!libMod) {
+              std::string message = "Failed to parse library at " + path;
+              throw std::invalid_argument(message);
+            }
+            libMod->setTargetTriple(Triple(dstMod->getTargetTriple()));
+            libMod->setDataLayout(dstMod->getDataLayout());
 
-      std::unordered_set<std::string> externalFns;
-      for (llvm::Function &fn : libMod->functions()) {
-        if (!fn.isDeclaration())
-          externalFns.insert(fn.getName().str());
-      }
+            std::unordered_set<std::string> externalFns;
+            for (llvm::Function &fn : libMod->functions()) {
+              if (!fn.isDeclaration())
+                externalFns.insert(fn.getName().str());
+            }
 
-      if (linker.linkInModule(std::move(libMod),
-                              llvm::Linker::Flags::LinkOnlyNeeded)) {
-        std::string message = "Failed to link library at " + path;
-        throw std::invalid_argument(message);
-      }
+            if (linker.linkInModule(std::move(libMod),
+                                    llvm::Linker::Flags::LinkOnlyNeeded)) {
+              std::string message = "Failed to link library at " + path;
+              throw std::invalid_argument(message);
+            }
 
-      // Mark linked-in functions as internal because backends use external
-      // linkage as a signifier of kernel functions.
-      for (llvm::Function &fn : dstMod->functions()) {
-        if (externalFns.contains(fn.getName().str())) {
-          fn.setLinkage(llvm::GlobalValue::InternalLinkage);
-        }
-      }
-    }
-  });
+            // Mark linked-in functions as internal because backends use
+            // external linkage as a signifier of kernel functions.
+            for (llvm::Function &fn : dstMod->functions()) {
+              if (externalFns.contains(fn.getName().str())) {
+                fn.setLinkage(llvm::GlobalValue::InternalLinkage);
+              }
+            }
+          }
+        });
 }
 
 static void triton_stacktrace_signal_handler(void *) {
