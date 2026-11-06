@@ -53,6 +53,9 @@ env:
 
 jobs:
   build:
+    # Default/explicit PVC hardware is unavailable on the Gitea fleet. Keep
+    # caller-selected BMG lanes and all GitHub hardware coverage.
+    if: ${{ github.server_url == 'https://github.com' || (inputs.runner_label != '' && inputs.runner_label != 'max1100' && inputs.runner_label != 'max1550' && inputs.runner_label != 'pvc') }}
     name: Third party benchmarks
     runs-on:
       - linux
