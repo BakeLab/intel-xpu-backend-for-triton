@@ -18,11 +18,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Gitea has x86_64 builders; GitHub retains its native ARM64 lane.
-        config: >-
-          ${{ fromJSON(github.server_url == 'https://github.com'
-            && '[{"runs_on":["self-hosted","CPU"],"arch":"x86_64"},{"runs_on":"ubuntu-22.04-arm","arch":"aarch64"}]'
-            || '[{"runs_on":["self-hosted","CPU"],"arch":"x86_64"}]') }}
+        config:
+        - {runs_on: ['self-hosted', 'CPU'], arch: 'x86_64'}
+        - {runs_on: 'ubuntu-22.04-arm', arch: 'aarch64'}
 
 
     permissions:
