@@ -104,6 +104,8 @@ jobs:
 
   integration-tests:
     name: Integration tests matrix
+    # The integration matrix runs on Max 1100 hardware, unavailable to Gitea.
+    if: github.server_url == 'https://github.com'
 
     strategy:
       fail-fast: false
