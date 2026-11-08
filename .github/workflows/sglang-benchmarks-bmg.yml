@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   build-wheel:
+    if: github.server_url == 'https://github.com'
     permissions:
       contents: read
       id-token: write   # for Sigstore signing in the reusable wheel-build workflow
@@ -31,7 +32,7 @@ jobs:
 
   benchmarks:
     needs: build-wheel
-    if: always() && !cancelled()
+    if: github.server_url == 'https://github.com' && always() && !cancelled()
     uses: ./.github/workflows/sglang-benchmarks.yml
     with:
       runner_label: b580
