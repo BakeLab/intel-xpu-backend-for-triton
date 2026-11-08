@@ -28,7 +28,7 @@ jobs:
       - name: Install brew dependencies
         run: |
           brew update
-          brew install ccache llvm@19 lld coreutils
+          brew install ccache llvm@19 lld
       - name: Compute cache keys
         id: cache-key
         run: |
@@ -44,11 +44,11 @@ jobs:
           fi
 
           # Process the files if they exist
-          echo "llvm=$(sha256sum $llvm_file | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
-          echo "nvidia=$(sha256sum $nvidia_file | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
-          echo "amd=$(sha256sum $amd_file | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+          echo "llvm=$(shasum -a 256 "$llvm_file" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "nvidia=$(shasum -a 256 "$nvidia_file" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "amd=$(shasum -a 256 "$amd_file" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
           echo "json=$(cat $json_file)" >> $GITHUB_OUTPUT
-          echo "datetime=$(date -u -Iseconds)" >> $GITHUB_OUTPUT
+          echo "datetime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
         shell: bash
       - name: Cache build dependencies
         uses: actions/cache@v6
