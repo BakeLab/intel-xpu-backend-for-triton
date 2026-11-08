@@ -12,6 +12,7 @@ env:
 
 jobs:
   update-config:
+    if: github.server_url == 'https://github.com'
     runs-on:
       - max1100
       - rolling

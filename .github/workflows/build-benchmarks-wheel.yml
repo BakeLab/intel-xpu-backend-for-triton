@@ -44,6 +44,8 @@ permissions:
 jobs:
   build:
     name: Build benchmarks wheel
+    # Max 1100 hardware is available only through GitHub Actions.
+    if: github.server_url == 'https://github.com'
     runs-on:
       - max1100
       - rolling
