@@ -44,8 +44,7 @@ permissions: read-all
 jobs:
   download:
     name: Download reports
-    runs-on:
-      - runner-0.0.22
+    runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
       GITHUB_TOKEN: ${{ github.token }}

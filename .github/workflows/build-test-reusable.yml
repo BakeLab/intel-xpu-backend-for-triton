@@ -52,10 +52,6 @@ on:
         description: Ignore pytest.skip
         type: boolean
         default: false
-      runner_version:
-        description: Runner label for version
-        type: string
-        default: runner-0.0.22
       use_pyenv_python:
         description: Use Python built with pyenv
         type: boolean
@@ -83,7 +79,7 @@ jobs:
   build:
     name: Build
     timeout-minutes: 720
-    runs-on: ${{ fromJson(inputs.runner_label && format('["linux", "{0}"]', inputs.runner_label) || format('["linux", "{0}", "{1}", "{2}"]', inputs.device, inputs.driver_version, inputs.runner_version)) }}
+    runs-on: ${{ fromJson(inputs.runner_label && format('["linux", "{0}"]', inputs.runner_label) || format('["linux", "{0}", "{1}"]', inputs.device, inputs.driver_version)) }}
     defaults:
       run:
         shell: bash -noprofile --norc -eo pipefail -c "source /opt/intel/oneapi/setvars.sh > /dev/null; source {0}"
@@ -213,7 +209,7 @@ jobs:
       matrix:
         loop: ${{ fromJson(needs.build.outputs.integration-tests-matrix) }}
     timeout-minutes: 720
-    runs-on: ${{ fromJson(inputs.runner_label && format('["linux", "{0}"]', inputs.runner_label) || format('["linux", "{0}", "{1}", "{2}"]', inputs.device, inputs.driver_version, inputs.runner_version)) }}
+    runs-on: ${{ fromJson(inputs.runner_label && format('["linux", "{0}"]', inputs.runner_label) || format('["linux", "{0}", "{1}"]', inputs.device, inputs.driver_version)) }}
     defaults:
       run:
         shell: bash -noprofile --norc -eo pipefail -c "source /opt/intel/oneapi/setvars.sh > /dev/null; source {0}"
@@ -406,10 +402,9 @@ jobs:
       runner_label: ${{ inputs.runner_label }}
       driver_version: ${{ inputs.driver_version }}
       use_pyenv_python: ${{ inputs.use_pyenv_python }}
-      runner_version: ${{ inputs.runner_version }}
 
   check-jobs:
-    runs-on: runner-0.0.22
+    runs-on: ubuntu-latest
     if: always()
     needs:
       - build

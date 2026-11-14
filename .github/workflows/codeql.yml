@@ -8,9 +8,7 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    runs-on:
-      - cpu
-      - runner-0.0.22
+    runs-on: ubuntu-latest
     permissions:
       # required for all workflows
       security-events: write
@@ -86,9 +84,7 @@ jobs:
   report:
     name: Generate SDL Security Report
     needs: analyze
-    runs-on:
-      - cpu
-      - runner-0.0.22
+    runs-on: ubuntu-latest
     permissions:
       security-events: read
       contents: read
