@@ -24,7 +24,6 @@ jobs:
     name: Tests
     runs-on:
       - rolling
-      - runner-0.0.22
     timeout-minutes: 160
     steps:
       - name: Checkout repository

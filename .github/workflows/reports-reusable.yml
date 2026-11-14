@@ -27,10 +27,6 @@ on:
         description: Use Python built with pyenv
         type: boolean
         default: false
-      runner_version:
-        description: Runner label for version
-        type: string
-        default: runner-0.0.22
 
       # Comparison parameters
       compare_run_id:
@@ -55,8 +51,7 @@ permissions: read-all
 jobs:
   reports:
     name: Reports
-    runs-on:
-      - ${{ inputs.runner_version }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
