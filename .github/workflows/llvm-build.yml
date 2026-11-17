@@ -79,9 +79,6 @@ jobs:
         - {runner: 'AlmaLinux 8 ARM64', runs_on: 'ubuntu-22.04-arm', target-os: 'almalinux', arch: 'arm64', container: 'almalinux:8.10-20250411'}
         - {runner: 'MacOS X64', runs_on: 'macos-15-intel', target-os: 'macos', arch: 'x64'}
         - {runner: 'MacOS ARM64', runs_on: 'macos-15', target-os: 'macos', arch: 'arm64'}
-        - {runner: 'Windows 2022', runs_on: 'windows-2022', target-os: 'windows', arch: 'x64', msvc_arch: 'amd64'}
-        # MSVC 14.5x from VS 2026 runs out of heap on AMDGPU tables and ICEs on mlir-tblgen for ARM64; pin to 14.44.
-        - {runner: 'Windows 11 ARM64', runs_on: 'windows-11-arm', target-os: 'windows', arch: 'arm64', msvc_arch: 'arm64', msvc_toolset: '14.44'}
 
     steps:
 
@@ -166,13 +163,6 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Set up MSVC
-      if: matrix.config.target-os == 'windows'
-      uses: ilammy/msvc-dev-cmd@v1.13.0
-      with:
-        arch: ${{ matrix.config.msvc_arch }}
-        toolset: ${{ matrix.config.msvc_toolset }}
-
     - name: Install Prerequisites
       shell: bash
       run: |
@@ -226,34 +216,6 @@ jobs:
         llvm-project/llvm
 
         ninja -C llvm-project/build ${{ env.llvm_build_targets }}
-
-    - name: Configure, Build, Test, and Install LLVM (Windows)
-      if: matrix.config.target-os == 'windows'
-      run: >
-        cmake -GNinja -Bllvm-project/build
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
-        -DCMAKE_INSTALL_PREFIX="${{ env.llvm_sdk_dir }}"
-        -DLLVM_BUILD_UTILS=${{ env.llvm_build_utils }}
-        -DLLVM_BUILD_TOOLS=ON
-        -DLLVM_ENABLE_ASSERTIONS=ON
-        -DMLIR_ENABLE_BINDINGS_PYTHON=OFF
-        -DLLVM_ENABLE_PROJECTS="${{ env.llvm_projects }}"
-        -DLLVM_DISTRIBUTION_COMPONENTS="${{ env.LLVM_DISTRIBUTION_COMPONENTS }}"
-        -DLLVM_ENABLE_DIA_SDK=OFF
-        -DLLVM_INSTALL_UTILS=${{ env.llvm_build_utils }}
-        -DLLVM_TARGETS_TO_BUILD="${{ env.llvm_targets }}"
-        -DLLVM_INCLUDE_TESTS=${{ env.llvm_include_tests }}
-        -DLLVM_ENABLE_PIC=ON
-        -DBUILD_SHARED_LIBS=OFF
-        -DLLVM_BUILD_LLVM_DYLIB=OFF
-        -DLLVM_LINK_LLVM_DYLIB=OFF
-        -DLLVM_ENABLE_ZSTD=OFF
-        -DLLVM_ENABLE_LZMA=OFF
-        llvm-project/llvm
-
-        ninja -C llvm-project/build ${{ env.llvm_build_targets }}
-
 
     - name: Build Standalone AMD Codegen
       if: matrix.package == 'amd-codegen'
