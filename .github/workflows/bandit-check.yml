@@ -8,6 +8,8 @@ permissions: read-all
 
 jobs:
   bandit-check:
+    # BakeLab's Gitea deployment has no Max 1100 rolling runner.
+    if: github.server_url == 'https://github.com'
     runs-on:
       - max1100
       - rolling

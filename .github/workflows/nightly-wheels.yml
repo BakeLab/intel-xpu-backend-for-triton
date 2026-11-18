@@ -34,6 +34,8 @@ env:
 
 jobs:
   build:
+    # BakeLab's Gitea deployment has no Max 1100 rolling runner.
+    if: github.server_url == 'https://github.com'
     name: Build
     runs-on:
       - max1100
