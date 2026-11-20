@@ -32,6 +32,10 @@ permissions: read-all
 env:
   USE_AOT_DEVLIST: pvc
 
+concurrency:
+  group: nightly-wheels-${{ github.event_name }}-${{ (github.event_name == 'push' || github.event_name == 'pull_request') && (github.event.pull_request.number || github.ref) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   build:
     # BakeLab's Gitea deployment has no Max 1100 rolling runner.

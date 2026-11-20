@@ -28,6 +28,10 @@ env:
   PYTHON_VERSION: '3.11'
   TRITON_TEST_CMD: scripts/test-triton.sh --skip-pytorch-install
 
+concurrency:
+  group: pip-test-${{ github.event_name }}-${{ (github.event_name == 'push' || github.event_name == 'pull_request') && (github.event.pull_request.number || github.ref) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   tests:
     name: Tests
