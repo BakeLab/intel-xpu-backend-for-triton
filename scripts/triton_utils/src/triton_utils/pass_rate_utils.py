@@ -234,7 +234,8 @@ class TestCase:  #  pylint: disable=too-many-instance-attributes
             module_path = test_classname[:test_classname.rfind(".")].replace(".", "/")
             self.path_without_variant = f"{module_path}/{self.module}.py::{self.test_class}::{self.test}"
         else:
-            self.path_without_variant = f"{self.classname.replace('.', '/')}/{self.module}.py::{self.test}"
+            module_path = self.classname.replace(".", "/")
+            self.path_without_variant = f"{module_path}/{self.module}.py::{self.test}"
         self.path = f"{self.path_without_variant}{self.variant}"
         self.key = f"{self.testsuite}::{self.path}"
 
