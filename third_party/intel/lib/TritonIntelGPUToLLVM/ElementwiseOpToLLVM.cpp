@@ -1608,10 +1608,10 @@ struct FpToFpOpConversion
     Type dstType = isDstFP32 ? f16_ty : dstElementType;
     Converter &converter =
         getConverter(op.getOperation(), srcType, dstType, roundingMode);
-    uint64_t numProduce =
+    size_t numProduce =
         std::max(converter.minElements,
                  std::min(converter.maxElements, operands.size()));
-    uint64_t numConsume = std::min(numProduce, operands.size());
+    size_t numConsume = std::min(numProduce, operands.size());
 
     SmallVector<Value> inVals;
     inVals.reserve(numConsume);

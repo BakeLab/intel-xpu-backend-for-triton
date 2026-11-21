@@ -27,6 +27,7 @@ class CLIUtils:
         capture_output: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         attempt = 0
+        command = " ".join(cmd)
         run_res: subprocess.CompletedProcess[str] | None = None
         while attempt <= retries:
             run_res = subprocess.run(cmd, check=False, capture_output=True, text=True)
@@ -43,12 +44,12 @@ class CLIUtils:
                 continue
             if run_res.returncode != 0:
                 raise ValueError(
-                    f"Command '{' '.join(cmd)}' failed with exit code {run_res.returncode}.\nstdout: {run_res.stdout}\nstderr: {run_res.stderr}"
+                    f"Command '{command}' failed with exit code {run_res.returncode}.\nstdout: {run_res.stdout}\nstderr: {run_res.stderr}"
                 )
         assert run_res is not None
         if check and run_res.returncode != 0:
             raise ValueError(
-                f"Command '{' '.join(cmd)}' failed with exit code {run_res.returncode}.\nstdout: {run_res.stdout}\nstderr: {run_res.stderr}"
+                f"Command '{command}' failed with exit code {run_res.returncode}.\nstdout: {run_res.stdout}\nstderr: {run_res.stderr}"
             )
         if capture_output:
             if len(cmd) >= 3 and cmd[1] == "api":
@@ -169,9 +170,12 @@ class GHAWorkflow(GHAObj):
                 f"No successful completed runs found for workflow_id={self.id} on branch='{self.branch}'."
             )
         run_obj = max(runs, key=lambda run: run["run_number"])  # the listing order is not documented
+        url = run_obj["html_url"]
+        sha = run_obj["head_sha"]
+        created_at = run_obj["created_at"]
         print(
-            f"[info] Latest successful run: {run_obj['html_url']} (head_sha {run_obj['head_sha']}, "
-            f"created_at {run_obj['created_at']})",
+            f"[info] Latest successful run: {url} (head_sha {sha}, "
+            f"created_at {created_at})",
             file=sys.stderr,
         )
         return GHAWorkflowRun.from_dict({"repo": self.repo, "branch": self.branch} | run_obj)

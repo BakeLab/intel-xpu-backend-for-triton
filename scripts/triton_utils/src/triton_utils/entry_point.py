@@ -156,6 +156,7 @@ class Config:  # pylint: disable=R0902
         include_pattern_default = [
             "--include-subdir-pattern " + '"' + pattern.pattern + '"' for pattern in cls().include_subdir_patterns
         ]
+        include_help = " ".join(include_pattern_default)
         parser.add_argument(
             "--include-subdir-pattern",
             "--include-dir",
@@ -164,13 +165,14 @@ class Config:  # pylint: disable=R0902
             default=cls().include_subdir_patterns,
             required=False,
             help=(
-                f"Include patterns for report subdir or artifact name, default value is `{' '.join(include_pattern_default)}`."
+                f"Include patterns for report subdir or artifact name, default value is `{include_help}`."
                 f" If the report subdir or artifact name matches include and exclude patterns, exclude pattern will have a priority"
             ),
         )
         exclude_pattern_default = [
             "--exclude-subdir-pattern " + '"' + pattern.pattern + '"' for pattern in cls().exclude_subdir_patterns
         ]
+        exclude_help = " ".join(exclude_pattern_default)
         parser.add_argument(
             "--exclude-subdir-pattern",
             "--exclude-dir",
@@ -178,8 +180,7 @@ class Config:  # pylint: disable=R0902
             dest="exclude_subdir_patterns",
             default=cls().exclude_subdir_patterns,
             required=False,
-            help=
-            f"Exclude patterns for report subdir or artifact name, default value is `{' '.join(exclude_pattern_default)}`.",
+            help=f"Exclude patterns for report subdir or artifact name, default value is `{exclude_help}`.",
         )
         parser.add_argument(
             "--merge-test-results",

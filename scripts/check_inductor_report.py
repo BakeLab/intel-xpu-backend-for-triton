@@ -78,7 +78,8 @@ def main():
     parsed_args = argparser.parse_args()
     passed_args = PassedArgs(**vars(parsed_args))
     exitcode = check_report(passed_args)
-    print(f"Report check result: {'SUCCESS' if exitcode == 0 else 'FAIL'}")
+    result = "SUCCESS" if exitcode == 0 else "FAIL"
+    print(f"Report check result: {result}")
     sys.exit(exitcode)
 
 

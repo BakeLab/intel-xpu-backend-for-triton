@@ -97,7 +97,7 @@ class build_ext(_build_ext):
 def get_git_commit_hash(length=8):
     try:
         cmd = ["git", "rev-parse", f"--short={length}", "HEAD"]
-        return f"+git{subprocess.check_output(cmd).strip().decode('utf-8')}"
+        return "+git" + subprocess.check_output(cmd).strip().decode("utf-8")
     except (
             FileNotFoundError,
             subprocess.CalledProcessError,

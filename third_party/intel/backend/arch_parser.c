@@ -28,7 +28,8 @@ extern "C" EXPORT_FUNC const char *parse_device_arch(uint64_t dev_arch) {
     arch = "bmg";
     break;
   default:
-    std::cerr << "Triton XPU supports only the BMG architecture; device architecture is "
+    std::cerr << "Triton XPU supports only the BMG architecture; device "
+                 "architecture is "
               << (uint64_t)sycl_arch << std::endl;
   }
 
